@@ -22,6 +22,9 @@ import imgproc
 import model
 from utils import load_state_dict
 
+import time
+
+
 model_names = sorted(
     name for name in model.__dict__ if
     name.islower() and not name.startswith("__") and callable(model.__dict__[name]))
@@ -60,17 +63,21 @@ def main(args):
 
     # Start the verification mode of the model.
     sr_model.eval()
+    
+    while True:
+        lr_tensor = imgproc.preprocess_one_image(args.inputs_path, False, False, device)
+        # Use the model to generate super-resolved images
+        start = time.time()
+        with torch.no_grad():
+            sr_tensor = sr_model(lr_tensor)
+        end = time.time()
+        # Save image
+        sr_image = imgproc.tensor_to_image(sr_tensor, False, False)
+        sr_image = cv2.cvtColor(sr_image, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(args.output_path, sr_image)
+        
+        print(end - start)
 
-    lr_tensor = imgproc.preprocess_one_image(args.inputs_path, device)
-
-    # Use the model to generate super-resolved images
-    with torch.no_grad():
-        sr_tensor = sr_model(lr_tensor)
-
-    # Save image
-    sr_image = imgproc.tensor_to_image(sr_tensor, False, False)
-    sr_image = cv2.cvtColor(sr_image, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(args.output_path, sr_image)
 
     print(f"SR image save to `{args.output_path}`")
 
@@ -90,11 +97,11 @@ if __name__ == "__main__":
                         help="Super-resolution image path.")
     parser.add_argument("--model_weights_path",
                         type=str,
-                        default="./results/pretrained_models/SRGAN_x4-ImageNet-8c4a7569.pth.tar",
+                        default="./results/pretrained_models/SRGAN_x4.pth",
                         help="Model weights file path.")
     parser.add_argument("--device_type",
                         type=str,
-                        default="cpu",
+                        default="cuda",
                         choices=["cpu", "cuda"])
     args = parser.parse_args()
 
